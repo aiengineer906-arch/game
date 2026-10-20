@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="hi"><head><base href="/"><meta charset="utf-8"><title>LIFE THIEF 3D - Chapter 2: Subject Zero | TRAILER</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<style>
+:root{--red:#c4222e}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;color:#e8e8ee;font-family:Georgia,'Times New Roman',serif;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+#vig{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,0) 45%,rgba(0,0,0,.78) 100%);z-index:2}
+#grain{position:fixed;inset:-50%;pointer-events:none;z-index:3;opacity:.09;mix-blend-mode:overlay;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='160' height='160' filter='url(%23n)'/></svg>");animation:gr .5s steps(5) infinite}
+@keyframes gr{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+#bars i{position:fixed;left:0;right:0;height:11vh;background:#000;z-index:4;pointer-events:none}
+#bars i:first-child{top:0}#bars i:last-child{bottom:0}
+#fade,#flash{position:fixed;inset:0;pointer-events:none;z-index:6}
+#fade{background:#000;opacity:1}
+#flash{background:#fff;opacity:0;z-index:7}
+#txt{position:fixed;left:0;right:0;bottom:15vh;z-index:5;text-align:center;pointer-events:none}
+#txt div{position:absolute;left:0;right:0;bottom:0;font-size:clamp(16px,2.9vw,34px);letter-spacing:.34em;text-transform:uppercase;opacity:0;transition:opacity .7s;text-shadow:0 0 18px #000,0 0 6px #000;padding:0 6vw}
+#txt div.on{opacity:.95}
+#txt div.big{font-size:clamp(30px,7vw,92px);letter-spacing:.2em;font-weight:700;bottom:-4vh}
+#txt div.red{color:#ff4a4a}
+#boot,#end{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#05060a;text-align:center;padding:20px}
+#boot h1,#end h1{margin:0;font-weight:700;font-size:clamp(34px,8vw,104px);letter-spacing:.2em;text-shadow:0 0 30px rgba(196,34,46,.45)}
+#boot h2,#end h2{margin:8px 0 26px;font-weight:300;letter-spacing:.34em;font-size:clamp(12px,2.2vw,22px);color:var(--red)}
+#boot p{opacity:.55;font-size:13px;letter-spacing:.12em;margin:18px 0 0}
+button,a.btn{background:none;border:1px solid #888;color:#eee;padding:14px 34px;letter-spacing:.34em;font:inherit;font-size:clamp(13px,2vw,18px);cursor:pointer;text-decoration:none;display:inline-block;transition:.25s}
+button:hover:not(:disabled),a.btn:hover{background:rgba(196,34,46,.25);border-color:var(--red)}
+button:disabled{opacity:.4;cursor:default}
+#end{display:none;opacity:0;transition:opacity 1.6s;background:radial-gradient(ellipse at 50% 40%,#160508 0%,#000 75%)}
+#end.on{opacity:1}
+#end .row{display:flex;gap:18px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+#end .play{border-color:var(--red);background:rgba(196,34,46,.3)}
+#end small{margin-top:26px;opacity:.5;letter-spacing:.3em;font-size:12px}
+#err{position:fixed;left:0;right:0;top:0;z-index:99;background:rgba(120,0,0,.9);color:#fff;font:12px monospace;padding:6px;white-space:pre-wrap;display:none}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
+</head><body>
+<div id="boot"><h1>LIFE THIEF</h1><h2>CHAPTER 2 &mdash; SUBJECT ZERO</h2><button id="go" disabled>LOADING...</button><p>OFFICIAL TRAILER &middot; headphones recommended</p></div>
+<div id="vig"></div><div id="grain"></div><div id="bars"><i></i><i></i></div><div id="txt"></div><div id="fade"></div><div id="flash"></div>
+<div id="end"><h1>LIFE THIEF</h1><h2>CHAPTER 2 &mdash; SUBJECT ZERO</h2><div class="row"><a class="btn play" id="playBtn" href="chapter2/">&#9654; PLAY NOW</a><button id="again">REPLAY TRAILER</button></div><small>YE RAAT KABHI KHATAM NAHI HOGI</small></div>
+<div id="err"></div>
+<script type="module">
+import * as THREE from 'three';
+import { Player } from './chapter2/js/player.js';
+import { Shadow } from './chapter2/js/shadow.js';
+import { buildLevel } from './chapter2/js/level.js';
+import { buildHall } from './chapter2/js/hall.js';
+import { HallSnd } from './chapter2/js/hallsnd.js';
+import { tryReplaceFBX, tryReplaceSprite } from './chapter2/js/loader.js';
+
+const $ = (i) => document.getElementById(i);
+const PLAY_URL = 'chapter2/';          // "PLAY NOW" button yahan jata he (game ka chapter 2)
+$('playBtn').href = PLAY_URL;
+const showErr = (e) => { try { const d = $('err'); d.style.display = 'block'; d.textContent = String((e && (e.stack || e.message)) || e).slice(0, 700); } catch (x) {} };
+addEventListener('error', (ev) => showErr(ev.error || ev.message)); addEventListener('unhandledrejection', (ev) => showErr(ev.reason));
+
+// ================= world (game ka asli hall) =================
+const scene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(50, innerWidth / innerHeight, 0.1, 260);
+const R = new THREE.WebGLRenderer({ antialias: true }); R.setPixelRatio(Math.min(devicePixelRatio, 2)); R.setSize(innerWidth, innerHeight); document.body.prepend(R.domElement);
+onresize = () => { cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); R.setSize(innerWidth, innerHeight); };
+const lv = buildLevel(scene);
+const hemi = scene.children.find((o) => o.isHemisphereLight), moon = scene.children.find((o) => o.isDirectionalLight), torch = scene.children.find((o) => o.isPointLight);
+const hall = buildHall(scene, lv);
+const OX = hall.OX;
+const pl = new Player(scene), sh = new Shadow(scene);
+tryReplaceFBX(pl.model, 'assets/models/girl/girl12_op.Fbx', 'assets/models/girl/girl12_op.fbm/', 3.0, { light: true }, () => tryReplaceSprite(pl.model, 'assets/textures/noah.png', 3.1, { light: true }));
+pl.p.set(OX + 91, 0, 20); pl.render(0.016);
+try { lv.setDoor('gate', true, true); lv.kpLed(true); } catch (e) {}   // exit darwaza khula (thorn room ka raasta)
+
+// ================= Noah ki script ki hui chaal (koi control nahi) =================
+const L = (a, b, t) => a + (b - a) * t, E = (t) => t * t * (3 - 2 * t), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const JT = 0.75, JV = 7.5, JG = 20, RUN = 5, JLEN = RUN * JT;   // jump: 0.75 sec, 3.75 m
+function mkAct(start, segs) {
+  let t = 0, x = start.x, z = start.z, hd = start.hd; const out = [];
+  for (const s of segs) {
+    if (s.k === 'idle') { out.push({ k: 'idle', t0: t, t1: t + s.d, x0: x, z0: z, x1: x, z1: z, hd: s.hd === undefined ? hd : s.hd, sp: 0 }); t += s.d; if (s.hd !== undefined) hd = s.hd; continue; }
+    let tx, tz;
+    if (s.k === 'jump') { tx = x + s.dir[0] * JLEN; tz = z + s.dir[1] * JLEN; } else { tx = s.to[0]; tz = s.to[1]; }
+    const dx = tx - x, dz = tz - z, d = Math.hypot(dx, dz), dur = s.k === 'jump' ? JT : d / RUN;
+    hd = Math.atan2(dx, dz); out.push({ k: s.k, t0: t, t1: t + dur, x0: x, z0: z, x1: tx, z1: tz, hd, sp: d / dur }); t += dur; x = tx; z = tz;
+  }
+  return { start, out, end: t };
+}
+function sample(a, t) {
+  if (t < 0) return { x: a.start.x, z: a.start.z, y: 0, hd: a.start.hd, sp: 0, g: true };
+  const o = a.out;
+  for (let i = 0; i < o.length; i++) {
+    const s = o[i]; if (t < s.t1 || i === o.length - 1) {
+      const u = clamp((t - s.t0) / (s.t1 - s.t0), 0, 1), tt = clamp(t - s.t0, 0, s.t1 - s.t0);
+      if (t >= a.end) return { x: s.x1, z: s.z1, y: 0, hd: s.hd, sp: 0, g: true };
+      return { x: L(s.x0, s.x1, u), z: L(s.z0, s.z1, u), y: s.k === 'jump' ? Math.max(0, JV * tt - 0.5 * JG * tt * tt) : 0, hd: s.hd, sp: s.sp, g: s.k !== 'jump' };
+    }
+  }
+}
+const FR = 0.25, BASE = 40;
+const segDist = (px, pz, ax, az, bx, bz) => { const dx = bx - ax, dz = bz - az, l2 = dx * dx + dz * dz, t = Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / l2)); return Math.hypot(px - (ax + dx * t), pz - (az + dz * t)); };
+
+// ---- ACTION A: cage -> lava par patthar (S pakka / U 0.5s me tootta / O turant tootta: usse kud kar paar) ----
+const actA = mkAct({ x: 91, z: 20, hd: Math.PI / 2 }, [
+  { k: 'run', to: [96.9, 20] }, { k: 'jump', dir: [1, 0] }, { k: 'run', to: [101.1, 20] }, { k: 'jump', dir: [1, 0] }, { k: 'run', to: [106.7, 20] }, { k: 'jump', dir: [1, 0] },
+  { k: 'run', to: [112, 20] }]);
+// ---- ACTION B: sarakti kaante wali deewarein ----
+const actB = mkAct({ x: 110.45, z: 20, hd: Math.PI / 2 }, [{ k: 'run', to: [116.6, 20] }, { k: 'run', to: [116.6, 5] }]);
+// ---- ACTION C: ghoomte kaante (thorn room) ----
+const mkC = (j1, j2) => mkAct({ x: 105, z: -11, hd: Math.PI }, [
+  { k: 'run', to: [105, j1] }, { k: 'jump', dir: [0, -1] }, { k: 'run', to: [105, j2] }, { k: 'jump', dir: [0, -1] }, { k: 'run', to: [103.6, -24.2] },
+  { k: 'idle', d: 0.9, hd: Math.PI }, { k: 'idle', d: 6, hd: 0 }]);
+
+// ---- trap ke timing ka hisaab (hall.js jaise hi formule) taaki trailer me trap theek Noah ke peeche / aage-aage chale ----
+const cageOf = (th) => { const per = 4.46, w = 0.8, ph = (((th + 0.7) % per) + per) % per; let y = 3.5, dead = false; if (ph < w) y = 3.5; else if (ph < w + 0.16) { y = 3.5 * (1 - (ph - w) / 0.16); dead = true; } else if (ph < w + 1.06) { y = 0; dead = true; } else if (ph < w + 2.06) { y = 3.5 * ((ph - w - 1.06) / 1.0); dead = true; } return { y, dead }; };
+const plateK = (th, off) => { const per = 4.1, w = 0.8, act = 1.7, ph = (((th + off) % per) + per) % per; if (ph >= w && ph < w + act) { const u = (ph - w) / act; return u < 0.3 ? u / 0.3 : u < 0.6 ? 1 : 1 - (u - 0.6) / 0.4; } return 0; };
+const firstSlam = (f, t1 = 6) => { for (let t = 0.01; t < t1; t += 0.01) if (f(t) && !f(t - 0.01)) return t; return 99; };
+function solveA() {
+  let best = null;
+  for (let o = 0; o < 4.46; o += 0.01) {
+    let mc = Infinity;
+    for (let t = 0; t <= actA.end; t += 0.01) { const n = sample(actA, t), c = cageOf(BASE + o + t); if (c.dead && c.y < n.y + 2.5) mc = Math.min(mc, Math.max(Math.abs(n.x - 95.5) - 2.35, Math.abs(n.z - 20) - 2.35)); }
+    if (mc < 0.3) continue; const ts = firstSlam((t) => cageOf(BASE + o + t).dead), sc = Math.abs(ts - 1.45);
+    if (!best || sc < best.sc) best = { th0: BASE + o, sc, mc, ts };
+  }
+  return best || { th0: BASE + 3.15, sc: 9, mc: -1 };
+}
+function solveB() {
+  let best = null;
+  for (let o = 0; o < 4.1; o += 0.01) {
+    let mc = Infinity;
+    for (let t = 0; t <= actB.end; t += 0.01) {
+      const n = sample(actB, t);
+      [[112.6, 0], [116.6, 2.05]].forEach(([cx, off]) => { const k = plateK(BASE + o + t, off); if (k > 0.05) { const zc = 29.1 - k * 15.1; mc = Math.min(mc, Math.max(Math.abs(n.x - cx) - 1.45, (zc - 0.7) - n.z)); } });
+    }
+    if (mc < 0.35) continue; const t1 = firstSlam((t) => plateK(BASE + o + t, 0) > 0.05), t2 = firstSlam((t) => plateK(BASE + o + t, 2.05) > 0.05), sc = Math.abs(t1 - 0.7) + Math.abs(t2 - 2.7);
+    if (!best || sc < best.sc) best = { th0: BASE + o, sc, mc, t1, t2 };
+  }
+  return best || { th0: BASE, sc: 9, mc: -1 };
+}
+const THORN = [{ x: 99, z: -16, w: 0.9, ph: 0 }, { x: 111, z: -22, w: -1.3, ph: 1 }];
+function thornSeg(q, t) { const a = t * q.w + q.ph, c = Math.cos(a), s = Math.sin(a); return [q.x - c * 6.4, q.z - s * 6.4, q.x + c * 6.4, q.z + s * 6.4]; }
+function solveC() {
+  let best = null;
+  for (const j1 of [-12, -12.8, -13.6, -14.4]) for (const d2 of [0.1, 0.4, 0.7, 1.0, 1.3]) {
+    const j2 = j1 - JLEN - d2; if (j2 < -20.2) continue; const act = mkC(j1, j2), N = [];
+    for (let t = 0; t <= 5.6; t += 0.02) N.push(sample(act, t));
+    for (let o = 0; o < 40; o += 0.02) {
+      let bad = false, p1 = 0, p2 = 0;
+      for (let i = 0; i < N.length && !bad; i++) {
+        const n = N[i], t = BASE + o + i * 0.02;
+        for (let q = 0; q < 2; q++) { const s = thornSeg(THORN[q], t), d = segDist(n.x, n.z, s[0], s[1], s[2], s[3]); if (n.y < 1.4 && d < 1.0) { bad = true; break; } if (n.y > 1.25 && d < 1.2) { if (q) p2 = 1; else p1 = 1; } }
+      }
+      if (bad) continue; const sc = p1 + p2; if (!best || sc > best.sc) best = { th0: BASE + o, sc, j1, j2, act }; if (best.sc === 2) return best;
+    }
+  }
+  return best || { th0: BASE, sc: -1, act: mkC(-12.8, -17.7) };
+}
+const SOL = { A: solveA(), B: solveB() }; const SC = solveC(); SOL.C = SC; const ACT = { A: actA, B: actB, C: SC.act };
+console.log('[trailer] solve A', SOL.A, 'B', SOL.B, 'C', { th0: SC.th0, sc: SC.sc, j1: SC.j1, j2: SC.j2 });
+// cage ke girne ka waqt (audio ke liye)
+const slamA = (() => { for (let t = 0; t < 4; t += 0.01) { const a = cageOf(SOL.A.th0 + t), b = cageOf(SOL.A.th0 + t - 0.01); if (a.dead && !b.dead) return t; } return 1.4; })();
+const slamsB = (() => { const r = []; for (const off of [0, 2.05]) for (let t = 0.01; t < actB.end; t += 0.01) if (plateK(SOL.B.th0 + t, off) > 0.05 && plateK(SOL.B.th0 + t - 0.01, off) <= 0.05) { r.push(t); break; } return r; })();
+
+// ================= camera shots =================
+const SH = [
+  { id: 'intro', act: 'A', t0: -4.2, t1: 0, dur: 4.8, cam: (u) => { const e = E(u); return { p: [L(101, 89.0, e), L(1.2, 2.6, e), L(15.2, 22.2, e)], l: [L(93, 98.5, e), L(1.9, 0.5, e), L(19.5, 20, e)], fov: L(60, 47, e) }; },
+    txt: [[0.1, 'RAASTA SIRF EK HAI', 2.2, '']] },
+  { id: 'run', act: 'A', t0: 0, t1: 1.18, dur: 1.7, cam: (u, n) => ({ p: [n.x - 5.4, 1.8, 22.0], l: [n.x + 3.5, 1.6, 20], fov: 52 }) },
+  { id: 'leap', act: 'A', t0: 1.18, t1: 2.0, dur: 2.6, cam: (u) => ({ p: [104.8, 1.5, 19.3], l: [L(96.8, 100.2, u), 1.9, 20], fov: L(60, 44, u) }), txt: [[0.15, 'EK GALAT KADAM...', 1.8, 'red']] },
+  { id: 'stones', act: 'A', t0: 2.0, t1: 3.89, dur: 3.0, cam: (u, n) => ({ p: [n.x + 1.2, 3.8, 11.8], l: [n.x + 1.8, 0.9 + n.y * 0.5, 20], fov: 58 }) },
+  { id: 'b1', act: 'B', t0: 0, t1: 1.3, dur: 2.2, cam: (u, n) => ({ p: [118.7, 1.6, 15.6], l: [L(113.5, 116.4, u), 1.8, 20], fov: 56 }), txt: [[0.2, '...AUR SAB KHATAM', 1.8, 'red']] },
+  { id: 'b2', act: 'B', t0: 1.3, t1: 2.4, dur: 1.3, cam: (u, n) => ({ p: [119.0, 2.0, 18.8], l: [116.5, 2.0, n.z - 1], fov: 56 }) },
+  { id: 'b3', act: 'B', t0: 2.4, t1: 3.35, dur: 2.4, cam: (u) => ({ p: [119.1, 2.1, 15.9], l: [116.3, 2.2, 12.6], fov: 54 }) },
+  { id: 'c1', act: 'C', t0: 0, t1: 1.4, dur: 2.2, cam: (u) => ({ p: [119.2, L(6.2, 5.2, u), -12.0], l: [105.8, 0.9, -17.6], fov: 56 }), shadow: 0.2 },
+  { id: 'c2', act: 'C', t0: 1.4, t1: 2.9, dur: 3.2, cam: (u) => ({ p: [104.2, 1.9, -26.4], l: [105, 1.7, -17.2], fov: L(58, 46, u) }) },
+  { id: 'c3', act: 'C', t0: 2.9, t1: 5.2, dur: 4.0, cam: (u) => ({ p: [L(105.0, 104.5, u), 2.55, -26.3], l: [104.5, 2.1, -14.5], fov: L(50, 40, E(u)) }), txt: [[0.45, 'PEECHE DEKHO.', 2.0, 'red']], shadow2: 0.05 },
+];
+let gT = 0; const starts = []; let acc = 0; SH.forEach((s) => { starts.push(acc); acc += s.dur; }); const TOTAL = acc;
+
+// ================= sound (khud ki banayi hui: drone + dhadkan + dhamaake; baaki hall ki apni awaazein) =================
+let ac = null, mg = null, drone = null;
+const A = {
+  init() { try { ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); mg = ac.createGain(); mg.gain.value = 0.9; const c = ac.createDynamicsCompressor(); mg.connect(c); c.connect(ac.destination); } catch (e) { ac = null; } },
+  startDrone() { if (!ac) return; const g = ac.createGain(), lp = ac.createBiquadFilter(); g.gain.value = 0.0001; lp.type = 'lowpass'; lp.frequency.value = 180; lp.connect(g); g.connect(mg); const os = []; [[41.2, 'sawtooth'], [41.9, 'sawtooth'], [82.4, 'triangle']].forEach(([f, ty]) => { const o = ac.createOscillator(); o.type = ty; o.frequency.value = f; const og = ac.createGain(); og.gain.value = 0.3; o.connect(og); og.connect(lp); o.start(); os.push(o); }); const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = 0.08; lg.gain.value = 90; l.connect(lg); lg.connect(lp.frequency); l.start(); drone = { g, lp, os: os.concat(l) }; g.gain.linearRampToValueAtTime(0.16, ac.currentTime + 4); },
+  rise(sec, to = 0.3) { if (drone) { drone.g.gain.cancelScheduledValues(ac.currentTime); drone.g.gain.linearRampToValueAtTime(to, ac.currentTime + sec); drone.lp.frequency.linearRampToValueAtTime(900, ac.currentTime + sec); } },
+  stopDrone(sec = 1.5) { if (drone) { drone.g.gain.cancelScheduledValues(ac.currentTime); drone.g.gain.linearRampToValueAtTime(0.0001, ac.currentTime + sec); } },
+  thump(v = 0.6, f = 62, d = 0.28) { if (!ac) return; const t = ac.currentTime, o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(f * 1.8, t); o.frequency.exponentialRampToValueAtTime(f * 0.5, t + d * 0.6); g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); o.connect(g); g.connect(mg); o.start(t); o.stop(t + d + 0.05); },
+  noise(d, v, f, q = 1) { if (!ac) return; const n = (ac.sampleRate * d) | 0, b = ac.createBuffer(1, n, ac.sampleRate), x = b.getChannelData(0); for (let i = 0; i < n; i++) x[i] = (Math.random() * 2 - 1) * (1 - i / n); const s = ac.createBufferSource(), fl = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = b; fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q; g.gain.value = v; s.connect(fl); fl.connect(g); g.connect(mg); s.start(); },
+  boom(v = 0.9) { A.thump(v, 55, 0.9); A.noise(0.7, v * 0.5, 180, 0.7); },
+  heart() { A.thump(0.55, 60, 0.22); setTimeout(() => A.thump(0.4, 55, 0.22), 230); },
+  clang() { A.boom(0.8); try { HallSnd.clang(); } catch (e) {} },
+  riser(sec) { if (!ac) return; const n = (ac.sampleRate * sec) | 0, b = ac.createBuffer(1, n, ac.sampleRate), x = b.getChannelData(0); for (let i = 0; i < n; i++) x[i] = Math.random() * 2 - 1; const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(), t = ac.currentTime; s.buffer = b; f.type = 'bandpass'; f.Q.value = 2.5; f.frequency.setValueAtTime(200, t); f.frequency.exponentialRampToValueAtTime(5200, t + sec); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.35, t + sec); s.connect(f); f.connect(g); g.connect(mg); s.start(t); },
+  sfx(name, vol = 0.8) { try { const a = new Audio('assets/audio/' + name); a.volume = vol; a.play().catch(() => {}); } catch (e) {} },
+};
+
+// ================= text =================
+const tbox = $('txt');
+function say(text, dur = 2, cls = '') { const d = document.createElement('div'); d.textContent = text; d.className = cls; tbox.appendChild(d); requestAnimationFrame(() => requestAnimationFrame(() => d.classList.add('on'))); setTimeout(() => d.classList.remove('on'), dur * 1000); setTimeout(() => d.remove(), dur * 1000 + 900); }
+
+// ================= director =================
+let playing = false, ended = false, curAct = null, curShot = -1, lastTau = null, prevG = true, impulse = 0, bump = 0, firedSh = {}, ev = {}, T0h = 0;
+const hallT = (a, tau) => SOL[a].th0 + tau;
+function enterShot(i) {
+  const s = SH[i]; curShot = i;
+  if (curAct !== s.act) { curAct = s.act; try { hall.reset(); } catch (e) {} lastTau = null; }
+  (s.txt || []).forEach(([at, tx, d, c]) => setTimeout(() => { if (playing && curShot === i) say(tx, d, c); }, at * s.dur * 1000));
+  if (i === 0) { A.startDrone(); A.heart(); setTimeout(A.heart, 900); setTimeout(A.heart, 1800); setTimeout(A.heart, 2700); setTimeout(A.heart, 3600); }
+  if (s.id === 'leap') A.rise(6, 0.28);
+  if (s.id === 'b1') { A.boom(0.7); }
+  if (s.id === 'c1') { A.boom(0.8); A.rise(14, 0.38); }
+  if (s.id === 'c3') { A.riser(4.0); }
+}
+function step(dt) {
+  gT += dt;
+  let i = curShot < 0 ? 0 : curShot; while (i < SH.length - 1 && gT >= starts[i] + SH[i].dur) i++;
+  if (i !== curShot) enterShot(i);
+  const s = SH[i], u = clamp((gT - starts[i]) / s.dur, 0, 1), tau = s.t0 + (s.t1 - s.t0) * u, a = s.act;
+  const dtw = lastTau === null ? 0 : Math.max(0, tau - lastTau); lastTau = tau;
+  const n = sample(ACT[a], tau);
+  // Noah ko jagah par rakho
+  const wasG = prevG; pl.p.set(OX + n.x, n.y, n.z); pl.hd = n.hd; pl.vx = Math.sin(n.hd) * n.sp; pl.vz = Math.cos(n.hd) * n.sp; pl.vy = 0; pl.g = n.g; pl.inv = 0; pl.stun = 0; pl.lastG = 0; pl.cr = false; pl.t += dtw; pl.air = n.g ? 0 : pl.air + dtw; pl.landed = n.g && !wasG; prevG = n.g; pl.face = Math.sin(n.hd) >= 0 ? 1 : -1;
+  // hall chale (trap, lava, tootte patthar)
+  const th = hallT(a, tau); lv.update(th, dtw, pl, false); hall.update(th, dtw, pl, true); hall.sfx = null; hall.say = null; hall.tp = null;
+  if (moon) moon.intensity = 0; if (hemi) hemi.intensity = 0.2; scene.fog.density = 0.021; scene.background.setHex(0x030407); scene.fog.color.setHex(0x030407);
+  if (torch) { torch.position.set(pl.p.x + Math.sin(pl.hd) * 0.8, pl.p.y + 2.6, pl.p.z + Math.cos(pl.hd) * 0.8); torch.intensity = 9 * (0.35 + 0.65 * hall.glob); }
+  // shadow
+  if (s.shadow !== undefined && !firedSh.s1 && u >= s.shadow) { firedSh.s1 = 1; sh.show(OX + 105, 0, { z: -9.2, face: 1, speed: 0.55, near: 0 }); try { sh.model.setTint(0); } catch (e) {} A.sfx('shadow_appear.mp3', 0.7); }
+  if (s.shadow2 !== undefined && !firedSh.s2 && u >= s.shadow2) { firedSh.s2 = 1; sh.moveTo(OX + 105, 0, -15.5, 4.2); A.sfx('shadow_nearby.mp3', 0.8); }
+  sh.update(dt, pl); { if (sh.fade > 0.02) { const g = sh.model.group; let ph = null; g.traverse((o) => { if (!ph && o.isMesh && o.material && o.material.uniforms && o.material.uniforms.uMsk) ph = o.parent; }); const ang = Math.atan2(cam.position.x - g.position.x, cam.position.z - g.position.z); if (ph && ph !== g) ph.rotation.y = ang - g.rotation.y; else g.rotation.y = ang; } }
+  // awaaz ke events
+  const E1 = (k, t, f) => { if (a === k[0] && !ev[k] && tau >= t) { ev[k] = 1; f(); } };
+  E1('A1', slamA, () => { A.clang(); impulse = 0.5; });
+  E1('B1', slamsB[0] === undefined ? 9 : slamsB[0], () => { A.clang(); impulse = 0.35; });
+  E1('B2', slamsB[1] === undefined ? 9 : slamsB[1], () => { A.clang(); impulse = 0.6; });
+  if (pl.landed) bump = 0.12;
+  try { HallSnd.tick(dt, true, n.g && n.sp > 0.3, n.sp, pl.landed); } catch (e) {}
+  // ending
+  if (i === SH.length - 1 && u >= 0.985 && !ended) finish();
+  // render
+  try { pl.render(dtw > 0 ? dtw : 0.0001); } catch (e) { showErr(e); }
+  const c = s.cam(u, { x: n.x, z: n.z, y: n.y }), hw = 0.012 + (hall.heat || 0) * 0.03;
+  impulse = Math.max(0, impulse - dt * 1.2); bump = Math.max(0, bump - dt * 0.5);
+  const sx = Math.sin(gT * 9.1) * hw + (Math.random() - 0.5) * (impulse * 0.35 + bump * 0.15), sy = Math.sin(gT * 7.3 + 1) * hw + (Math.random() - 0.5) * (impulse * 0.35 + bump * 0.15);
+  cam.position.set(OX + c.p[0] + sx, c.p[1] + sy, c.p[2]); cam.lookAt(OX + c.l[0], c.l[1], c.l[2]);
+  if (Math.abs(cam.fov - c.fov) > 0.01) { cam.fov = c.fov; cam.updateProjectionMatrix(); }
+  pl.camYaw = Math.atan2(cam.position.x - pl.p.x, cam.position.z - pl.p.z);
+  // fade in / out
+  const fd = $('fade'); fd.style.opacity = gT < 0.9 ? 1 - gT / 0.9 : (ended ? 1 : 0);
+}
+function finish() {
+  ended = true; A.stopDrone(1.2); try { HallSnd.stop(); } catch (e) {}
+  const f = $('flash'); f.style.transition = 'opacity .05s'; f.style.opacity = 1; A.boom(1); A.sfx('horror_sting.mp3', 0.9);
+  setTimeout(() => { f.style.transition = 'opacity .6s'; f.style.opacity = 0; $('fade').style.transition = 'opacity .1s'; $('fade').style.opacity = 1; }, 90);
+  setTimeout(() => { $('end').style.display = 'flex'; requestAnimationFrame(() => $('end').classList.add('on')); A.boom(0.9); A.thump(0.5, 48, 1.4); }, 1700);
+  setTimeout(() => { playing = false; }, 2500);
+}
+let last = performance.now();
+function tick(now) {
+  requestAnimationFrame(tick); const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (playing && !(ended && !playing)) { try { step(dt); } catch (e) { showErr(e); } }
+  R.render(scene, cam);
+}
+requestAnimationFrame(tick);
+
+// ================= start =================
+let ready = false;
+const poll = setInterval(() => { if (pl.model.custom || performance.now() > 14000) { ready = true; clearInterval(poll); $('go').disabled = false; $('go').textContent = '▶ PLAY TRAILER'; } }, 200);
+$('go').onclick = () => { if (!ready) return; $('boot').style.display = 'none'; A.init(); try { HallSnd.unlock(); } catch (e) {} playing = true; last = performance.now(); gT = 0; };
+$('again').onclick = () => location.reload();
+// debug / test hook (screenshot ke liye): ?auto=1 ya window.__tl
+window.__tl = { SOL, slamA, slamsB, TOTAL, starts, SH, step: (n, dt = 1 / 30) => { for (let k = 0; k < n; k++) step(dt); R.render(scene, cam); }, begin: () => { $('boot').style.display = 'none'; playing = true; gT = 0; }, get gT() { return gT; }, pl, hall, sh, cam };
+</script>
+</body></html>
